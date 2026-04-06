@@ -20,3 +20,6 @@ const PORT = 5000;
 app.listen(PORT, () => {
     console.log("Server started");
 });
+const authRoutes = require("./routes/authRoutes");
+
+app.use("/api/auth", authRoutes);
