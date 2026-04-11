@@ -30,3 +30,7 @@ app.get("/test", (req, res) => {
 const challengeRoutes = require("./routes/challengeRoutes");
 
 app.use("/api/challenge", challengeRoutes);
+
+const leaderboardRoutes = require("./routes/leaderboardRoutes");
+
+app.use("/api/leaderboard", leaderboardRoutes);
