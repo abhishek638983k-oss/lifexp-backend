@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
     lastCompleted: Date,
 
    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     categoryXP: {
         coding: { type: Number, default: 0 },
         fitness: { type: Number, default: 0 },
