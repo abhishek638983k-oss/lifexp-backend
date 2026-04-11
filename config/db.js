@@ -1,13 +1,26 @@
-const mongoose = require("mongoose");
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const connectDB = require("./config/db");
 
-const connectDB = async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log("MongoDB Connected");
-    } catch (err) {
-        console.log(err);
-        process.exit(1);
-    }
-};
+dotenv.config();
+connectDB();
 
-module.exports = connectDB;
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+// test route
+app.get("/", (req, res) => {
+    res.send("LifeXP Backend Running 🚀");
+});
+
+const authRoutes = require("./routes/authRoutes");
+app.use("/api/auth", authRoutes);
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+    console.log("Server started");
+});
