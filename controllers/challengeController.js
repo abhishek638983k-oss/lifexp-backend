@@ -38,8 +38,6 @@ const completeChallenge = async (req, res) => {
     }
 };
 
-module.exports = { getChallenge, completeChallenge };
-
 const addChallenge = async (req, res) => {
     try {
         const challenge = new Challenge(req.body);
@@ -50,3 +48,7 @@ const addChallenge = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+
+module.exports = { getChallenge, completeChallenge, addChallenge};
+
