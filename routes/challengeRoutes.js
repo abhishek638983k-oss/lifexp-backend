@@ -8,5 +8,6 @@ const {
 
 router.post("/get", getChallenge);
 router.post("/complete", completeChallenge);
+router.post("/add", addChallenge);
 
 module.exports = router;
