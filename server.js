@@ -27,10 +27,6 @@ app.get("/test", (req, res) => {
     res.send("Test route working");
 });
 
-const authRoutes = require("./routes/authRoutes");
-
-app.use("/api/auth", authRoutes);
-
 const challengeRoutes = require("./routes/challengeRoutes");
 
 app.use("/api/challenge", challengeRoutes);
