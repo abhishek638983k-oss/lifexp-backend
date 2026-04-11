@@ -3,7 +3,8 @@ const router = express.Router();
 
 const {
     getChallenge,
-    completeChallenge
+    completeChallenge,
+    addChallenge
 } = require("../controllers/challengeController");
 
 router.post("/get", getChallenge);
