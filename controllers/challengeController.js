@@ -39,3 +39,14 @@ const completeChallenge = async (req, res) => {
 };
 
 module.exports = { getChallenge, completeChallenge };
+
+const addChallenge = async (req, res) => {
+    try {
+        const challenge = new Challenge(req.body);
+        await challenge.save();
+
+        res.json({ message: "Challenge added", challenge });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
