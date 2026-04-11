@@ -26,3 +26,8 @@ app.use("/api/auth", authRoutes);
 app.get("/test", (req, res) => {
     res.send("Test route working");
 });
+
+const authRoutes = require("./routes/authRoutes");
+
+app.use("/api/auth", authRoutes);
+
