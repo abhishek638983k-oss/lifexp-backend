@@ -42,16 +42,16 @@ const login = async (req, res) => {
             return res.status(400).json({ message: "Invalid" });
         }
 
-        res.json({ message: "Login success", user });
+       const token = jwt.sign(
+            { id: user._id },
+            "secretkey",
+            { expiresIn: "7d" }
+            );
+            
+        res.json({ token, user });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
-const token = jwt.sign(
-    { id: user._id },
-    "secretkey",
-    { expiresIn: "7d" }
-);
 
-res.json({ token, user });
 module.exports = { signup, login };
