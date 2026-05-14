@@ -38,3 +38,7 @@ app.use("/api/leaderboard", leaderboardRoutes);
 const friendRoutes = require("./routes/friendRoutes");
 
 app.use("/api/friend", friendRoutes);
+
+const adminRoutes = require("./routes/adminRoutes");
+
+app.use("/api/admin", adminRoutes);
