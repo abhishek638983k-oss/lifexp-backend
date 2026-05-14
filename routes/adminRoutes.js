@@ -1,27 +1,33 @@
 const express = require("express");
 const router = express.Router();
-const authMiddleware = require("../middleware/authMiddleware");
+const optionalAuthMiddleware = require("../middleware/optionalAuthMiddleware");
 const adminMiddleware = require("../middleware/adminMiddleware");
 const {
     getStats,
     listUsers,
     updateUser,
     deleteUser,
+    listChallenges,
     createChallenge,
     updateChallenge,
     deleteChallenge,
-    listAttempts
+    listAttempts,
+    approveAttempt,
+    rejectAttempt
 } = require("../controllers/adminController");
 
-router.use(authMiddleware, adminMiddleware);
+router.use(optionalAuthMiddleware, adminMiddleware);
 
 router.get("/stats", getStats);
 router.get("/users", listUsers);
 router.patch("/users/:id", updateUser);
 router.delete("/users/:id", deleteUser);
+router.get("/challenges", listChallenges);
 router.post("/challenges", createChallenge);
 router.patch("/challenges/:id", updateChallenge);
 router.delete("/challenges/:id", deleteChallenge);
 router.get("/attempts", listAttempts);
+router.post("/attempts/:id/approve", approveAttempt);
+router.post("/attempts/:id/reject", rejectAttempt);
 
 module.exports = router;

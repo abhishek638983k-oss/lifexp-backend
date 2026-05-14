@@ -1,6 +1,7 @@
 const Challenge = require("../models/Challenge");
 const ChallengeAttempt = require("../models/ChallengeAttempt");
 const User = require("../models/User");
+const { verifyProofImage } = require("../services/proofVerifier");
 const {
     CATEGORIES,
     buildSeedChallenges,
@@ -97,6 +98,36 @@ const addCategoryXP = (user, category, xp) => {
     user.markModified("categoryXP");
 };
 
+const publicUser = (user) => {
+    const obj = user.toObject ? user.toObject() : user;
+    delete obj.password;
+    delete obj.__v;
+    return obj;
+};
+
+const awardChallengeXP = (user, challenge) => {
+    user.xp += challenge.xp;
+    addCategoryXP(user, challenge.category, challenge.xp);
+    user.level = Math.max(1, Math.floor(Math.sqrt(user.xp / 50)) + 1);
+
+    const today = new Date().toDateString();
+
+    if (user.lastCompleted) {
+        const last = new Date(user.lastCompleted).toDateString();
+
+        if (last !== today) {
+            const diff =
+                (new Date(today) - new Date(last)) / (1000 * 60 * 60 * 24);
+
+            user.streak = diff === 1 ? user.streak + 1 : 1;
+        }
+    } else {
+        user.streak = 1;
+    }
+
+    user.lastCompleted = new Date();
+};
+
 // GET RANDOM CHALLENGE
 const getChallenge = async (req, res) => {
     try {
@@ -180,7 +211,7 @@ const seedChallenges = async (req, res) => {
 // COMPLETE CHALLENGE
 const completeChallenge = async (req, res) => {
     try {
-        const { attemptId, proofNote } = req.body;
+        const { attemptId, proofNote, proofImageDataUrl } = req.body;
 
         const attempt = await ChallengeAttempt.findById(attemptId);
 
@@ -211,46 +242,44 @@ const completeChallenge = async (req, res) => {
             return res.status(400).json({ message: "Invalid data" });
         }
 
-        // ✅ XP increase
-        user.xp += challenge.xp;
+        attempt.proofNote = proofNote || "";
+        const proof = await verifyProofImage({ challenge, proofImageDataUrl });
+        attempt.proofStatus = proof.status === "approved" ? "approved" : proof.status;
+        attempt.proofScore = proof.score;
+        attempt.proofFeedback = proof.feedback;
 
-        // ✅ Category XP
-        addCategoryXP(user, challenge.category, challenge.xp);
-
-        // ✅ Level logic
-        user.level = Math.max(1, Math.floor(Math.sqrt(user.xp / 50)) + 1);
-
-        // ✅ Streak logic
-        const today = new Date().toDateString();
-
-        if (user.lastCompleted) {
-            const last = new Date(user.lastCompleted).toDateString();
-
-            if (last === today) {
-                // same day → no change
-            } else {
-                const diff =
-                    (new Date(today) - new Date(last)) / (1000 * 60 * 60 * 24);
-
-                if (diff === 1) {
-                    user.streak += 1;
-                } else {
-                    user.streak = 1;
-                }
-            }
-        } else {
-            user.streak = 1;
+        if (proof.image) {
+            attempt.proofImageDataUrl = proof.image.dataUrl;
+            attempt.proofImageMime = proof.image.mimeType;
+            attempt.proofImageSize = proof.image.size;
         }
 
-        user.lastCompleted = new Date();
-        attempt.status = "completed";
-        attempt.completedAt = new Date();
-        attempt.proofNote = proofNote || "";
+        if (!proof.image) {
+            await attempt.save();
+            return res.status(400).json({ message: proof.feedback, attempt });
+        }
 
-        await user.save();
+        if (proof.accepted) {
+            awardChallengeXP(user, challenge);
+            attempt.status = "completed";
+            attempt.completedAt = new Date();
+            attempt.reviewedAt = new Date();
+
+            await user.save();
+            await attempt.save();
+
+            return res.json({ message: "Completed", user: publicUser(user), attempt });
+        }
+
+        attempt.status = "pending_review";
+
         await attempt.save();
 
-        res.json({ message: "Completed", user, attempt });
+        res.json({
+            message: "Proof submitted. XP will be added after admin review.",
+            user: publicUser(user),
+            attempt
+        });
 
     } catch (err) {
         res.status(500).json({ error: err.message });

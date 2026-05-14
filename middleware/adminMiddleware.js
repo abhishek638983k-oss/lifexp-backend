@@ -2,8 +2,8 @@ const User = require("../models/User");
 
 const adminMiddleware = async (req, res, next) => {
     try {
-        const adminSecret = process.env.ADMIN_SECRET;
-        const providedSecret = req.headers["x-admin-secret"];
+        const adminSecret = process.env.ADMIN_SECRET?.trim();
+        const providedSecret = req.headers["x-admin-secret"]?.trim();
 
         if (!adminSecret) {
             return res.status(500).json({ message: "ADMIN_SECRET is not configured" });

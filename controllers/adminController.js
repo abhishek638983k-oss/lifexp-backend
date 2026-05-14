@@ -2,6 +2,42 @@ const Challenge = require("../models/Challenge");
 const ChallengeAttempt = require("../models/ChallengeAttempt");
 const User = require("../models/User");
 
+const addCategoryXP = (user, category, xp) => {
+    if (!user.categoryXP) user.categoryXP = {};
+    user.categoryXP[category] = (user.categoryXP[category] || 0) + xp;
+    user.markModified("categoryXP");
+};
+
+const publicUser = (user) => {
+    const obj = user.toObject ? user.toObject() : user;
+    delete obj.password;
+    delete obj.__v;
+    return obj;
+};
+
+const awardChallengeXP = (user, challenge) => {
+    user.xp += challenge.xp;
+    addCategoryXP(user, challenge.category, challenge.xp);
+    user.level = Math.max(1, Math.floor(Math.sqrt(user.xp / 50)) + 1);
+
+    const today = new Date().toDateString();
+
+    if (user.lastCompleted) {
+        const last = new Date(user.lastCompleted).toDateString();
+
+        if (last !== today) {
+            const diff =
+                (new Date(today) - new Date(last)) / (1000 * 60 * 60 * 24);
+
+            user.streak = diff === 1 ? user.streak + 1 : 1;
+        }
+    } else {
+        user.streak = 1;
+    }
+
+    user.lastCompleted = new Date();
+};
+
 const getStats = async (req, res) => {
     try {
         const [
@@ -107,6 +143,18 @@ const createChallenge = async (req, res) => {
     }
 };
 
+const listChallenges = async (req, res) => {
+    try {
+        const challenges = await Challenge.find()
+            .sort({ createdAt: -1, category: 1, title: 1 })
+            .limit(200);
+
+        res.json(challenges);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 const updateChallenge = async (req, res) => {
     try {
         const challenge = await Challenge.findByIdAndUpdate(
@@ -149,13 +197,72 @@ const listAttempts = async (req, res) => {
     }
 };
 
+const approveAttempt = async (req, res) => {
+    try {
+        const attempt = await ChallengeAttempt.findById(req.params.id);
+
+        if (!attempt) return res.status(404).json({ message: "Attempt not found" });
+        if (attempt.status === "completed") {
+            return res.status(400).json({ message: "Attempt already completed" });
+        }
+
+        const [user, challenge] = await Promise.all([
+            User.findById(attempt.user),
+            Challenge.findById(attempt.challenge)
+        ]);
+
+        if (!user || !challenge) {
+            return res.status(400).json({ message: "Invalid attempt data" });
+        }
+
+        awardChallengeXP(user, challenge);
+        attempt.status = "completed";
+        attempt.proofStatus = "approved";
+        attempt.proofFeedback = req.body.feedback || "Approved by admin.";
+        attempt.completedAt = new Date();
+        attempt.reviewedAt = new Date();
+
+        await user.save();
+        await attempt.save();
+
+        res.json({ message: "Attempt approved", attempt, user: publicUser(user) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+const rejectAttempt = async (req, res) => {
+    try {
+        const attempt = await ChallengeAttempt.findById(req.params.id);
+
+        if (!attempt) return res.status(404).json({ message: "Attempt not found" });
+        if (attempt.status === "completed") {
+            return res.status(400).json({ message: "Completed attempts cannot be rejected" });
+        }
+
+        attempt.status = "rejected";
+        attempt.proofStatus = "rejected";
+        attempt.proofFeedback = req.body.feedback || "Rejected by admin.";
+        attempt.reviewedAt = new Date();
+
+        await attempt.save();
+
+        res.json({ message: "Attempt rejected", attempt });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getStats,
     listUsers,
     updateUser,
     deleteUser,
+    listChallenges,
     createChallenge,
     updateChallenge,
     deleteChallenge,
-    listAttempts
+    listAttempts,
+    approveAttempt,
+    rejectAttempt
 };

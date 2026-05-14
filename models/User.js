@@ -2,6 +2,21 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
     username: { type: String, unique: true },
+    email: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    googleId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    authProvider: {
+        type: String,
+        enum: ["local", "google"],
+        default: "local"
+    },
     password: String,
     role: {
         type: String,

@@ -13,7 +13,7 @@ const challengeAttemptSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["active", "completed", "expired"],
+        enum: ["active", "pending_review", "completed", "rejected", "expired"],
         default: "active"
     },
     category: String,
@@ -26,7 +26,18 @@ const challengeAttemptSchema = new mongoose.Schema({
     },
     earliestCompleteAt: Date,
     completedAt: Date,
-    proofNote: String
+    reviewedAt: Date,
+    proofNote: String,
+    proofImageDataUrl: String,
+    proofImageMime: String,
+    proofImageSize: Number,
+    proofStatus: {
+        type: String,
+        enum: ["not_submitted", "manual_review", "approved", "rejected"],
+        default: "not_submitted"
+    },
+    proofScore: Number,
+    proofFeedback: String
 }, {
     timestamps: true
 });
