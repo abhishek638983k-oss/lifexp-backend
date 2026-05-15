@@ -1,4 +1,5 @@
 const MAX_PROOF_BYTES = 800 * 1024;
+const { verifyChallengeProofWithGemini } = require("./geminiService");
 
 const parseProofImage = (proofImageDataUrl) => {
     if (!proofImageDataUrl) {
@@ -30,7 +31,7 @@ const parseProofImage = (proofImageDataUrl) => {
     };
 };
 
-const verifyProofImage = async ({ challenge, proofImageDataUrl }) => {
+const verifyProofImage = async ({ challenge, proofImageDataUrl, proofNote = "" }) => {
     const parsed = parseProofImage(proofImageDataUrl);
 
     if (!parsed.valid) {
@@ -40,6 +41,30 @@ const verifyProofImage = async ({ challenge, proofImageDataUrl }) => {
             score: 0,
             feedback: parsed.message
         };
+    }
+
+    if (process.env.GEMINI_API_KEY) {
+        try {
+            const gemini = await verifyChallengeProofWithGemini({
+                challenge,
+                proofImage: parsed,
+                proofNote
+            });
+
+            if (gemini) {
+                return {
+                    accepted: gemini.accepted,
+                    status: gemini.accepted ? "approved" : "manual_review",
+                    score: gemini.score,
+                    feedback: gemini.accepted
+                        ? `Gemini accepted proof: ${gemini.feedback}`
+                        : `Gemini needs review: ${gemini.feedback}`,
+                    image: parsed
+                };
+            }
+        } catch (err) {
+            // Fall through to Hugging Face or manual review.
+        }
     }
 
     if (!process.env.HUGGINGFACE_API_TOKEN) {

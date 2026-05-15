@@ -1,6 +1,7 @@
 const Challenge = require("../models/Challenge");
 const ChallengeAttempt = require("../models/ChallengeAttempt");
 const User = require("../models/User");
+const { generateChallengeIdeas } = require("../services/geminiService");
 
 const addCategoryXP = (user, category, xp) => {
     if (!user.categoryXP) user.categoryXP = {};
@@ -68,7 +69,17 @@ const getStats = async (req, res) => {
 
 const listUsers = async (req, res) => {
     try {
-        const users = await User.find()
+        const search = req.query.search?.trim();
+        const filter = search
+            ? {
+                $or: [
+                    { username: { $regex: search, $options: "i" } },
+                    { email: { $regex: search, $options: "i" } },
+                    { role: { $regex: search, $options: "i" } }
+                ]
+            }
+            : {};
+        const users = await User.find(filter)
             .select("-password")
             .sort({ createdAt: -1, xp: -1 })
             .limit(200);
@@ -143,9 +154,38 @@ const createChallenge = async (req, res) => {
     }
 };
 
+const generateChallenges = async (req, res) => {
+    try {
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(400).json({ message: "GEMINI_API_KEY is not configured" });
+        }
+
+        const category = req.body.category || "coding";
+        const difficulty = req.body.difficulty || "easy";
+        const count = Math.min(Number(req.body.count || 5), 10);
+        const ideas = await generateChallengeIdeas({ category, difficulty, count });
+
+        res.json({ ideas });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 const listChallenges = async (req, res) => {
     try {
-        const challenges = await Challenge.find()
+        const search = req.query.search?.trim();
+        const filter = {};
+
+        if (search) {
+            filter.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { category: { $regex: search, $options: "i" } },
+                { difficulty: { $regex: search, $options: "i" } },
+                { source: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        const challenges = await Challenge.find(filter)
             .sort({ createdAt: -1, category: 1, title: 1 })
             .limit(200);
 
@@ -185,11 +225,28 @@ const deleteChallenge = async (req, res) => {
 
 const listAttempts = async (req, res) => {
     try {
-        const attempts = await ChallengeAttempt.find()
+        const search = req.query.search?.trim();
+        const status = req.query.status?.trim();
+        const filter = {};
+
+        if (status) filter.status = status;
+
+        let attempts = await ChallengeAttempt.find(filter)
             .populate("user", "username xp level")
             .populate("challenge", "title category difficulty xp source")
             .sort({ createdAt: -1 })
             .limit(100);
+
+        if (search) {
+            const lower = search.toLowerCase();
+            attempts = attempts.filter(attempt => [
+                attempt.user?.username,
+                attempt.challenge?.title,
+                attempt.challenge?.category,
+                attempt.status,
+                attempt.proofFeedback
+            ].some(value => String(value || "").toLowerCase().includes(lower)));
+        }
 
         res.json(attempts);
     } catch (err) {
@@ -260,6 +317,7 @@ module.exports = {
     deleteUser,
     listChallenges,
     createChallenge,
+    generateChallenges,
     updateChallenge,
     deleteChallenge,
     listAttempts,

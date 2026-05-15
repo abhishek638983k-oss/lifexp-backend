@@ -243,7 +243,7 @@ const completeChallenge = async (req, res) => {
         }
 
         attempt.proofNote = proofNote || "";
-        const proof = await verifyProofImage({ challenge, proofImageDataUrl });
+        const proof = await verifyProofImage({ challenge, proofImageDataUrl, proofNote });
         attempt.proofStatus = proof.status === "approved" ? "approved" : proof.status;
         attempt.proofScore = proof.score;
         attempt.proofFeedback = proof.feedback;

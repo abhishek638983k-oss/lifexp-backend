@@ -9,6 +9,7 @@ const {
     deleteUser,
     listChallenges,
     createChallenge,
+    generateChallenges,
     updateChallenge,
     deleteChallenge,
     listAttempts,
@@ -24,6 +25,7 @@ router.patch("/users/:id", updateUser);
 router.delete("/users/:id", deleteUser);
 router.get("/challenges", listChallenges);
 router.post("/challenges", createChallenge);
+router.post("/challenges/generate", generateChallenges);
 router.patch("/challenges/:id", updateChallenge);
 router.delete("/challenges/:id", deleteChallenge);
 router.get("/attempts", listAttempts);
