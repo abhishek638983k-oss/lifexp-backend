@@ -1,4 +1,5 @@
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
+const FALLBACK_GEMINI_MODEL = "gemini-2.5-flash";
 
 const parseGeminiJson = (text) => {
     const cleaned = text
@@ -12,6 +13,11 @@ const parseGeminiJson = (text) => {
     } catch {
         return null;
     }
+};
+
+const geminiModels = () => {
+    const configured = process.env.GEMINI_MODEL?.trim();
+    return [...new Set([configured, DEFAULT_GEMINI_MODEL, FALLBACK_GEMINI_MODEL].filter(Boolean))];
 };
 
 const callGemini = async ({ prompt, image }) => {
@@ -30,32 +36,45 @@ const callGemini = async ({ prompt, image }) => {
         });
     }
 
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts }],
-                generationConfig: {
-                    temperature: 0.2,
-                    responseMimeType: "application/json"
-                }
-            })
+    const body = JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: {
+            temperature: 0.2,
+            responseMimeType: "application/json"
         }
-    );
+    });
 
-    if (!response.ok) {
-        throw new Error("Gemini verifier unavailable");
+    const errors = [];
+
+    for (const model of geminiModels()) {
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": process.env.GEMINI_API_KEY
+                },
+                body
+            }
+        );
+
+        if (!response.ok) {
+            const text = await response.text();
+            errors.push(`${model}: ${response.status} ${text.slice(0, 160)}`);
+            continue;
+        }
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts
+            ?.map(part => part.text || "")
+            .join("")
+            .trim();
+
+        return parseGeminiJson(text || "");
     }
 
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts
-        ?.map(part => part.text || "")
-        .join("")
-        .trim();
-
-    return parseGeminiJson(text || "");
+    throw new Error(`Gemini request failed. ${errors.join(" | ")}`);
 };
 
 const verifyChallengeProofWithGemini = async ({ challenge, proofImage, proofNote }) => {
