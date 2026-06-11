@@ -9,17 +9,16 @@ connectDB();
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "6mb" }));
 
 app.get("/", (req, res) => {
-    res.send("LifeXP Backend Running 🚀");
+    res.json({ status: "ok", message: "LifeXP Backend Running" });
 });
 
-const PORT = 5000;
-
-app.listen(PORT, () => {
-    console.log("Server started");
+app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
 });
+
 const authRoutes = require("./routes/authRoutes");
 
 app.use("/api/auth", authRoutes);
@@ -42,3 +41,9 @@ app.use("/api/friend", friendRoutes);
 const adminRoutes = require("./routes/adminRoutes");
 
 app.use("/api/admin", adminRoutes);
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`);
+});
