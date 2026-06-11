@@ -79,6 +79,42 @@ const login = async (req, res) => {
     }
 };
 
+const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ message: "New password must be at least 6 characters." });
+        }
+
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (!user.password) {
+            user.password = await bcrypt.hash(newPassword, 10);
+            user.authProvider = user.authProvider || "local";
+            await user.save();
+            return res.json({ message: "Password set successfully", user: publicUser(user) });
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword || "", user.password);
+
+        if (!isMatch) {
+            return res.status(400).json({ message: "Current password is incorrect." });
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        res.json({ message: "Password changed successfully", user: publicUser(user) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 const googleLogin = async (req, res) => {
     try {
         const { credential } = req.body;
@@ -122,7 +158,8 @@ const googleLogin = async (req, res) => {
                 username: await uniqueUsername(profile.email.split("@")[0]),
                 email: profile.email,
                 googleId: profile.sub,
-                authProvider: "google"
+                authProvider: "google",
+                password: undefined
             });
         } else {
             user.googleId = user.googleId || profile.sub;
@@ -141,4 +178,4 @@ const googleLogin = async (req, res) => {
     }
 };
 
-module.exports = { signup, login, googleLogin };
+module.exports = { signup, login, changePassword, googleLogin };
