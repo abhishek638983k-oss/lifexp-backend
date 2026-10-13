@@ -1,9 +1,20 @@
 const User = require("../models/User");
 
+const isRequestingOwnAccount = (req, res, userId) => {
+    if (String(userId) !== String(req.user.id)) {
+        res.status(403).json({ message: "You can only access your own account" });
+        return false;
+    }
+
+    return true;
+};
+
 // SEND REQUEST
 const sendRequest = async (req, res) => {
     try {
         const { userId, friendId, username } = req.body;
+
+        if (!isRequestingOwnAccount(req, res, userId)) return;
 
         const user = await User.findById(userId);
         const friend = friendId
@@ -36,6 +47,8 @@ const acceptRequest = async (req, res) => {
     try {
         const { userId, friendId, requestId } = req.body;
         const requesterId = friendId || requestId;
+
+        if (!isRequestingOwnAccount(req, res, userId)) return;
 
         const user = await User.findById(userId);
         const friend = await User.findById(requesterId);
@@ -75,6 +88,8 @@ const acceptRequest = async (req, res) => {
 
 const getFriends = async (req, res) => {
     try {
+        if (!isRequestingOwnAccount(req, res, req.params.userId)) return;
+
         const user = await User.findById(req.params.userId)
             .populate("friends", "username xp level")
             .populate("friendRequests", "username xp level");

@@ -45,6 +45,7 @@ The server loads `.env` with `dotenv`. Configure the variables needed by the fea
 | Variable | Required | Description |
 | --- | --- | --- |
 | `MONGO_URI` | Yes | MongoDB connection string. |
+| `JWT_SECRET` | Yes | Secret used to sign and verify authentication tokens. Use a long, random value and keep it private. The server will not start if this is missing. |
 | `PORT` | No | HTTP port; defaults to `5000`. |
 | `ADMIN_SECRET` | For admin routes | Shared secret accepted in the `X-Admin-Secret` header. Alternatively, use a signed-in user whose database `role` is `admin`. |
 | `GOOGLE_CLIENT_ID` | For Google sign-in | OAuth client ID checked against the Google ID token audience. |
@@ -56,6 +57,7 @@ Example (replace values locally; do not commit credentials):
 
 ```dotenv
 MONGO_URI=mongodb://127.0.0.1:27017/lifexp
+JWT_SECRET=replace-with-a-long-random-value
 PORT=5000
 ADMIN_SECRET=replace-with-a-long-random-value
 GOOGLE_CLIENT_ID=your-google-oauth-client-id
@@ -294,13 +296,15 @@ The attempt must belong to the signed-in user and be active. The endpoint enforc
 
 ### Leaderboard
 
+Each entry contains only the public fields `_id`, `username`, `xp`, and `level`.
+
 | Method | Path | Authorization | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/api/leaderboard` | Bearer token | Return the ten users with the highest XP, sorted descending. |
 
 ### Friends
 
-All `/api/friend` routes require a bearer token.
+All `/api/friend` routes require a bearer token. The supplied `userId` (or `:userId` path parameter) must match the ID in the token; otherwise the API returns `403`.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -441,9 +445,8 @@ server.js     Express app setup and HTTP server
 
 ## Operational and security notes
 
-- `GET /api/leaderboard` currently returns raw User documents rather than a sanitized public projection. Do not expose it to untrusted clients until the response is restricted to public fields.
-- JWTs are signed and verified with the hard-coded value `secretkey` in the current source. This must be replaced by a strong environment-managed secret before deployment; setting an environment variable will not change current behavior.
-- Friend request handlers take `userId` from the request body/path and currently do not check that it matches the authenticated token. Treat these routes as trusted-client-only until ownership is enforced server-side.
+- `JWT_SECRET` must be configured as a long, random environment variable; the server refuses to start without it.
+- The leaderboard exposes only `_id`, `username`, `xp`, and `level`. Friend routes enforce that the requested user ID matches the authenticated user.
 - `ADMIN_SECRET` is a bearer-style shared credential; keep it private and use HTTPS in deployed environments.
 - AI proof evaluation is an automated aid, not a guarantee. Uncertain results are routed to manual review.
 - The database connection is started when `server.js` loads. The HTTP listener is started independently; `/api/health` does not verify database readiness.
